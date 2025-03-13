@@ -2,6 +2,7 @@ import { Routes, Route, useRoutes } from "react-router-dom";
 import LandingPage from "./pages/landing-page";
 import Login from "./pages/login";
 import Register from "./pages/register";
+import ForgotPassword from "./pages/forgot-password";
 import WidgetDemoPage from "./pages/widget-demo";
 import { ThemeProvider } from "./components/theme/theme-provider";
 import routes from "tempo-routes";
@@ -16,6 +17,7 @@ function App() {
         <Route path="/" element={<LandingPage />} />
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
+        <Route path="/forgot-password" element={<ForgotPassword />} />
         <Route path="/widget-demo" element={<WidgetDemoPage />} />
 
         {/* Add this before any catchall route */}

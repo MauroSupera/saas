@@ -7,9 +7,16 @@ import { PricingSection } from "@/components/landing/pricing-section";
 import { AboutSection } from "@/components/landing/about-section";
 import { ContactSection } from "@/components/landing/contact-section";
 
+import { motion } from "framer-motion";
+
 export default function LandingPage() {
   return (
-    <div className="bg-background min-h-screen">
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.5 }}
+      className="bg-background min-h-screen"
+    >
       <Header />
       <main>
         <HeroSection />
@@ -20,6 +27,6 @@ export default function LandingPage() {
         <ContactSection />
       </main>
       <Footer />
-    </div>
+    </motion.div>
   );
 }

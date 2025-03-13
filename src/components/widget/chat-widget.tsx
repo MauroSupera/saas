@@ -1,15 +1,36 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { Send, Paperclip, X, Maximize2, Minimize2 } from "lucide-react";
+import {
+  Send,
+  Paperclip,
+  X,
+  Maximize2,
+  Minimize2,
+  Image,
+  Smile,
+  MoreHorizontal,
+  MessageSquare,
+} from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
 
 interface ChatWidgetProps {
   companyName?: string;
   primaryColor?: string;
   welcomeMessage?: string;
   position?: "bottom-right" | "bottom-left";
+}
+
+interface Message {
+  id: string;
+  text: string;
+  sender: "user" | "agent";
+  timestamp: Date;
+  status?: "sending" | "sent" | "delivered" | "read";
+  avatar?: string;
+  agentName?: string;
 }
 
 export function ChatWidget({
@@ -24,206 +45,456 @@ export function ChatWidget({
   const [email, setEmail] = useState("");
   const [message, setMessage] = useState("");
   const [currentMessage, setCurrentMessage] = useState("");
-  const [messages, setMessages] = useState<
-    Array<{ text: string; sender: "user" | "agent" }>
-  >([]);
+  const [messages, setMessages] = useState<Message[]>([]);
   const [isMinimized, setIsMinimized] = useState(false);
+  const [isTyping, setIsTyping] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [lastMessageTime, setLastMessageTime] = useState<Date | null>(null);
+  const [showInitialAnimation, setShowInitialAnimation] = useState(true);
 
-  const handlePreChatSubmit = (e: React.FormEvent) => {
+  // Scroll to bottom when new messages arrive
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const widgetRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    // Scroll to bottom when new messages arrive
+    if (messagesEndRef.current) {
+      messagesEndRef.current.scrollIntoView({ behavior: "smooth" });
+    }
+  }, [messages]);
+
+  useEffect(() => {
+    // Simulate agent typing after user sends a message
+    const lastMessage = messages[messages.length - 1];
+    if (lastMessage?.sender === "user") {
+      setIsTyping(true);
+      const typingTimeout = setTimeout(() => {
+        setIsTyping(false);
+        // Add agent response
+        const newMessage: Message = {
+          id: Date.now().toString(),
+          text: "Obrigado por sua mensagem! Um de nossos agentes entrará em contato em breve.",
+          sender: "agent",
+          timestamp: new Date(),
+          status: "sent",
+          agentName: "Atendente",
+          avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=agent",
+        };
+        setMessages((prev) => [...prev, newMessage]);
+        setLastMessageTime(new Date());
+        if (!isOpen) {
+          setUnreadCount((prev) => prev + 1);
+        }
+      }, 2000);
+
+      return () => clearTimeout(typingTimeout);
+    }
+  }, [messages, isOpen]);
+
+  // Reset unread count when opening the chat
+  useEffect(() => {
+    if (isOpen) {
+      setUnreadCount(0);
+    }
+  }, [isOpen]);
+
+  // Add initial welcome message when component mounts
+  useEffect(() => {
+    if (messages.length === 0) {
+      const initialMessage: Message = {
+        id: "welcome",
+        text: welcomeMessage,
+        sender: "agent",
+        timestamp: new Date(),
+        status: "read",
+        agentName: "Atendente",
+        avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=agent",
+      };
+      setMessages([initialMessage]);
+      setLastMessageTime(new Date());
+    }
+
+    // Show initial animation for a few seconds
+    const animationTimer = setTimeout(() => {
+      setShowInitialAnimation(false);
+    }, 3000);
+
+    return () => clearTimeout(animationTimer);
+  }, [welcomeMessage]);
+
+  const handleSubmitPreChatForm = (e: React.FormEvent) => {
     e.preventDefault();
-    setIsPreChatFormCompleted(true);
-    // Add welcome message to chat
-    setMessages([{ text: welcomeMessage, sender: "agent" }]);
+    if (name && email) {
+      setIsPreChatFormCompleted(true);
+      // Add system message acknowledging the user info
+      const newMessage: Message = {
+        id: Date.now().toString(),
+        text: `Olá ${name}! Como podemos ajudar você hoje?`,
+        sender: "agent",
+        timestamp: new Date(),
+        status: "sent",
+        agentName: "Atendente",
+        avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=agent",
+      };
+      setMessages((prev) => [...prev, newMessage]);
+    }
   };
 
-  const handleSendMessage = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!currentMessage.trim()) return;
+  const handleSendMessage = () => {
+    if (currentMessage.trim()) {
+      const newMessage: Message = {
+        id: Date.now().toString(),
+        text: currentMessage,
+        sender: "user",
+        timestamp: new Date(),
+        status: "sending",
+      };
+      setMessages((prev) => [...prev, newMessage]);
+      setCurrentMessage("");
 
-    // Add user message
-    const newMessages = [...messages, { text: currentMessage, sender: "user" }];
-    setMessages(newMessages);
-    setCurrentMessage("");
+      // Simulate message being sent and delivered
+      setTimeout(() => {
+        setMessages((prev) =>
+          prev.map((msg) =>
+            msg.id === newMessage.id ? { ...msg, status: "sent" } : msg,
+          ),
+        );
+      }, 500);
 
-    // Simulate agent response after a delay
-    setTimeout(() => {
-      setMessages([
-        ...newMessages,
-        {
-          text: "Obrigado por sua mensagem! Um agente entrará em contato em breve.",
-          sender: "agent",
-        },
-      ]);
-    }, 1000);
+      setTimeout(() => {
+        setMessages((prev) =>
+          prev.map((msg) =>
+            msg.id === newMessage.id ? { ...msg, status: "delivered" } : msg,
+          ),
+        );
+      }, 1000);
+    }
+  };
+
+  const handleKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      handleSendMessage();
+    }
   };
 
   const toggleChat = () => {
     setIsOpen(!isOpen);
-    setIsMinimized(false);
+    if (isMinimized) {
+      setIsMinimized(false);
+    }
   };
 
   const toggleMinimize = () => {
     setIsMinimized(!isMinimized);
   };
 
+  const formatTime = (date: Date) => {
+    return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  };
+
   return (
     <div
-      className={`fixed ${position === "bottom-right" ? "right-4" : "left-4"} bottom-4 z-50`}
+      ref={widgetRef}
+      className={`fixed ${position === "bottom-right" ? "right-4" : "left-4"} bottom-4 z-50 flex flex-col items-end`}
+      style={{ fontFamily: "Inter, system-ui, sans-serif" }}
     >
       {/* Chat button */}
-      {!isOpen && (
-        <Button
-          onClick={toggleChat}
-          className="rounded-full w-16 h-16 shadow-lg transition-transform hover:scale-105"
-          style={{ backgroundColor: primaryColor }}
-        >
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-            className="w-8 h-8"
+      <AnimatePresence>
+        {!isOpen && (
+          <motion.div
+            initial={{ scale: 0.8, opacity: 0 }}
+            animate={{
+              scale: showInitialAnimation ? [1, 1.1, 1] : 1,
+              opacity: 1,
+            }}
+            exit={{ scale: 0.8, opacity: 0 }}
+            transition={{
+              duration: 0.3,
+              repeat: showInitialAnimation ? Infinity : 0,
+              repeatType: "reverse",
+              repeatDelay: 1,
+            }}
+            className="relative"
           >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"
-            />
-          </svg>
-        </Button>
-      )}
+            <button
+              onClick={toggleChat}
+              className="flex h-14 w-14 items-center justify-center rounded-full shadow-lg transition-colors duration-200 hover:shadow-xl"
+              style={{ backgroundColor: primaryColor }}
+            >
+              <MessageSquare className="h-6 w-6 text-white" />
+              {unreadCount > 0 && (
+                <span className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-xs font-bold text-white">
+                  {unreadCount}
+                </span>
+              )}
+            </button>
+            {lastMessageTime && !showInitialAnimation && (
+              <motion.div
+                initial={{ opacity: 0, y: 10, scale: 0.8 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                className="absolute bottom-16 right-0 w-60 rounded-lg bg-white p-3 shadow-md dark:bg-gray-800"
+              >
+                <p className="text-sm font-medium">{companyName}</p>
+                <p className="text-xs text-gray-500 dark:text-gray-400">
+                  Última mensagem {formatTime(lastMessageTime)}
+                </p>
+              </motion.div>
+            )}
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Chat window */}
-      {isOpen && (
-        <div
-          className={`bg-background rounded-lg shadow-xl overflow-hidden transition-all duration-300 ease-in-out border border-border ${isMinimized ? "w-72 h-14" : "w-80 sm:w-96 h-[500px]"}`}
-        >
-          {/* Chat header */}
-          <div
-            className="p-4 flex justify-between items-center cursor-pointer"
-            style={{ backgroundColor: primaryColor }}
-            onClick={toggleMinimize}
+      <AnimatePresence>
+        {isOpen && (
+          <motion.div
+            initial={{ opacity: 0, y: 20, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 20, scale: 0.95 }}
+            transition={{ duration: 0.3 }}
+            className="mb-4 w-full overflow-hidden rounded-lg border border-border bg-card shadow-xl sm:w-96"
           >
-            <h3 className="font-semibold text-white">{companyName}</h3>
-            <div className="flex items-center space-x-2">
-              {isMinimized ? (
-                <Maximize2 className="h-5 w-5 text-white" />
-              ) : (
-                <Minimize2 className="h-5 w-5 text-white" />
-              )}
-              <X
-                className="h-5 w-5 text-white hover:text-gray-200"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setIsOpen(false);
-                }}
-              />
-            </div>
-          </div>
-
-          {!isMinimized && (
-            <>
-              {/* Pre-chat form */}
-              {!isPreChatFormCompleted ? (
-                <div className="p-4 flex flex-col h-[calc(500px-64px)] overflow-y-auto">
-                  <p className="text-foreground mb-4">
-                    Por favor, preencha o formulário abaixo para iniciar o chat:
-                  </p>
-                  <form onSubmit={handlePreChatSubmit} className="space-y-4">
-                    <div>
-                      <Label htmlFor="name">Nome</Label>
-                      <Input
-                        id="name"
-                        value={name}
-                        onChange={(e) => setName(e.target.value)}
-                        required
-                        className="w-full"
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="email">Email</Label>
-                      <Input
-                        id="email"
-                        type="email"
-                        value={email}
-                        onChange={(e) => setEmail(e.target.value)}
-                        required
-                        className="w-full"
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="message">Como podemos ajudar?</Label>
-                      <Textarea
-                        id="message"
-                        value={message}
-                        onChange={(e) => setMessage(e.target.value)}
-                        required
-                        className="w-full"
-                      />
-                    </div>
-                    <Button
-                      type="submit"
-                      className="w-full"
-                      style={{ backgroundColor: primaryColor }}
-                    >
-                      Iniciar Chat
-                    </Button>
-                  </form>
+            {/* Chat header */}
+            <div
+              className="flex items-center justify-between p-4"
+              style={{ backgroundColor: primaryColor }}
+            >
+              <div className="flex items-center">
+                <div className="mr-3 h-8 w-8 rounded-full bg-white/20 flex items-center justify-center">
+                  <span className="text-white font-bold">
+                    {companyName.charAt(0)}
+                  </span>
                 </div>
-              ) : (
-                <>
-                  {/* Chat messages */}
-                  <div className="p-4 h-[calc(500px-128px)] overflow-y-auto">
-                    {messages.map((msg, index) => (
-                      <div
-                        key={index}
-                        className={`mb-4 ${msg.sender === "user" ? "text-right" : "text-left"}`}
+                <div>
+                  <h3 className="font-medium text-white">{companyName}</h3>
+                  <p className="text-xs text-white/80">
+                    {isTyping ? "Digitando..." : "Online"}
+                  </p>
+                </div>
+              </div>
+              <div className="flex space-x-1">
+                <button
+                  onClick={toggleMinimize}
+                  className="rounded p-1 text-white/80 hover:bg-white/20 hover:text-white"
+                >
+                  {isMinimized ? (
+                    <Maximize2 className="h-4 w-4" />
+                  ) : (
+                    <Minimize2 className="h-4 w-4" />
+                  )}
+                </button>
+                <button
+                  onClick={toggleChat}
+                  className="rounded p-1 text-white/80 hover:bg-white/20 hover:text-white"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+            </div>
+
+            {/* Chat body */}
+            <AnimatePresence>
+              {!isMinimized && (
+                <motion.div
+                  initial={{ height: 0 }}
+                  animate={{ height: "auto" }}
+                  exit={{ height: 0 }}
+                  transition={{ duration: 0.2 }}
+                >
+                  {!isPreChatFormCompleted ? (
+                    <div className="p-4">
+                      <h4 className="mb-4 text-center text-sm font-medium">
+                        Por favor, preencha suas informações para iniciar o chat
+                      </h4>
+                      <form
+                        onSubmit={handleSubmitPreChatForm}
+                        className="space-y-4"
                       >
-                        <div
-                          className={`inline-block rounded-lg px-4 py-2 max-w-[80%] ${msg.sender === "user" ? "bg-primary text-primary-foreground" : "bg-muted text-foreground"}`}
+                        <div className="space-y-2">
+                          <Label htmlFor="name">Nome</Label>
+                          <Input
+                            id="name"
+                            value={name}
+                            onChange={(e) => setName(e.target.value)}
+                            placeholder="Seu nome"
+                            required
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="email">Email</Label>
+                          <Input
+                            id="email"
+                            type="email"
+                            value={email}
+                            onChange={(e) => setEmail(e.target.value)}
+                            placeholder="seu.email@exemplo.com"
+                            required
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="message">Mensagem (opcional)</Label>
+                          <Textarea
+                            id="message"
+                            value={message}
+                            onChange={(e) => setMessage(e.target.value)}
+                            placeholder="Como podemos ajudar?"
+                            rows={3}
+                          />
+                        </div>
+                        <Button
+                          type="submit"
+                          className="w-full"
+                          style={{
+                            backgroundColor: primaryColor,
+                            color: "white",
+                          }}
                         >
-                          {msg.text}
+                          Iniciar Chat
+                        </Button>
+                      </form>
+                    </div>
+                  ) : (
+                    <>
+                      <div className="h-80 overflow-y-auto p-4">
+                        <div className="space-y-4">
+                          {messages.map((msg) => (
+                            <motion.div
+                              key={msg.id}
+                              initial={{ opacity: 0, y: 10 }}
+                              animate={{ opacity: 1, y: 0 }}
+                              transition={{ duration: 0.3 }}
+                              className={`flex ${msg.sender === "user" ? "justify-end" : "justify-start"}`}
+                            >
+                              {msg.sender === "agent" && (
+                                <div className="mr-2 h-8 w-8 flex-shrink-0 overflow-hidden rounded-full bg-primary/10">
+                                  {msg.avatar ? (
+                                    <img
+                                      src={msg.avatar}
+                                      alt={msg.agentName || "Agent"}
+                                      className="h-full w-full object-cover"
+                                    />
+                                  ) : (
+                                    <div className="flex h-full w-full items-center justify-center bg-primary/20 text-xs font-bold text-primary">
+                                      {msg.agentName?.charAt(0) || "A"}
+                                    </div>
+                                  )}
+                                </div>
+                              )}
+                              <div
+                                className={`max-w-[75%] rounded-lg p-3 ${msg.sender === "user" ? "bg-primary text-primary-foreground" : "bg-muted text-foreground"}`}
+                              >
+                                <p className="text-sm">{msg.text}</p>
+                                <div
+                                  className={`mt-1 flex items-center justify-end space-x-1 text-xs ${msg.sender === "user" ? "text-primary-foreground/70" : "text-muted-foreground"}`}
+                                >
+                                  <span>{formatTime(msg.timestamp)}</span>
+                                  {msg.sender === "user" && msg.status && (
+                                    <span>
+                                      {msg.status === "sending" && "✓"}
+                                      {msg.status === "sent" && "✓"}
+                                      {msg.status === "delivered" && "✓✓"}
+                                      {msg.status === "read" && "✓✓"}
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                            </motion.div>
+                          ))}
+                          {isTyping && (
+                            <motion.div
+                              initial={{ opacity: 0, y: 10 }}
+                              animate={{ opacity: 1, y: 0 }}
+                              className="flex justify-start"
+                            >
+                              <div className="mr-2 h-8 w-8 flex-shrink-0 overflow-hidden rounded-full bg-primary/10">
+                                <div className="flex h-full w-full items-center justify-center bg-primary/20 text-xs font-bold text-primary">
+                                  A
+                                </div>
+                              </div>
+                              <div className="max-w-[75%] rounded-lg bg-muted p-3">
+                                <div className="flex space-x-1">
+                                  <span className="animate-bounce">•</span>
+                                  <span
+                                    className="animate-bounce"
+                                    style={{ animationDelay: "0.2s" }}
+                                  >
+                                    •
+                                  </span>
+                                  <span
+                                    className="animate-bounce"
+                                    style={{ animationDelay: "0.4s" }}
+                                  >
+                                    •
+                                  </span>
+                                </div>
+                              </div>
+                            </motion.div>
+                          )}
+                          <div ref={messagesEndRef} />
                         </div>
                       </div>
-                    ))}
-                  </div>
-
-                  {/* Chat input */}
-                  <div className="p-4 border-t border-border">
-                    <form
-                      onSubmit={handleSendMessage}
-                      className="flex items-center space-x-2"
-                    >
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        className="text-muted-foreground hover:text-foreground"
-                      >
-                        <Paperclip className="h-5 w-5" />
-                      </Button>
-                      <Input
-                        value={currentMessage}
-                        onChange={(e) => setCurrentMessage(e.target.value)}
-                        placeholder="Digite sua mensagem..."
-                        className="flex-1"
-                      />
-                      <Button
-                        type="submit"
-                        size="icon"
-                        style={{ backgroundColor: primaryColor }}
-                      >
-                        <Send className="h-4 w-4" />
-                      </Button>
-                    </form>
-                  </div>
-                </>
+                      <div className="border-t border-border p-3">
+                        <div className="flex items-end space-x-2">
+                          <div className="flex-1">
+                            <Textarea
+                              value={currentMessage}
+                              onChange={(e) =>
+                                setCurrentMessage(e.target.value)
+                              }
+                              onKeyDown={handleKeyPress}
+                              placeholder="Digite sua mensagem..."
+                              className="min-h-10 resize-none"
+                              rows={1}
+                            />
+                          </div>
+                          <div className="flex space-x-1">
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              className="h-8 w-8 rounded-full"
+                            >
+                              <Paperclip className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              className="h-8 w-8 rounded-full"
+                            >
+                              <Image className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              className="h-8 w-8 rounded-full"
+                            >
+                              <Smile className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              size="icon"
+                              className="h-8 w-8 rounded-full"
+                              onClick={handleSendMessage}
+                              style={{ backgroundColor: primaryColor }}
+                              disabled={!currentMessage.trim()}
+                            >
+                              <Send className="h-4 w-4 text-white" />
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
+                    </>
+                  )}
+                </motion.div>
               )}
-            </>
-          )}
-        </div>
-      )}
+            </AnimatePresence>
+
+            {/* Chat footer */}
+            <div className="border-t border-border p-2 text-center text-xs text-muted-foreground">
+              Powered by {companyName}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

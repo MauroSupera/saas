@@ -101,7 +101,7 @@ export default function Login() {
               <div className="text-sm leading-6">
                 <Link
                   to="/forgot-password"
-                  className="font-semibold text-primary hover:text-primary/80"
+                  className="font-semibold text-primary hover:text-primary/80 transition-colors duration-300"
                 >
                   Esqueceu a senha?
                 </Link>

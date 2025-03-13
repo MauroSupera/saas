@@ -122,6 +122,7 @@ export function FeaturesSection() {
                     transition: { duration: 0.5, delay: 0.1 * (index + 1) },
                   },
                 }}
+                whileHover={{ scale: 1.03, y: -5 }}
                 className="group relative bg-card hover:bg-card/80 p-6 rounded-xl shadow-sm transition-all duration-300 hover:shadow-md border border-border"
               >
                 <div className="mb-5 flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 group-hover:bg-primary/20 transition-colors duration-300">

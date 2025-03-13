@@ -93,30 +93,38 @@ export function TestimonialsSection() {
             <CarouselContent>
               {testimonials.map((testimonial, index) => (
                 <CarouselItem key={index} className="md:basis-1/2 lg:basis-1/3">
-                  <Card className="h-full border border-border bg-card">
-                    <CardContent className="p-6 flex flex-col h-full">
-                      <div className="flex-1">
-                        <p className="text-muted-foreground italic">
-                          "{testimonial.content}"
-                        </p>
-                      </div>
-                      <div className="mt-6 flex items-center gap-x-4">
-                        <img
-                          src={testimonial.image}
-                          alt={testimonial.author}
-                          className="h-12 w-12 rounded-full bg-muted"
-                        />
-                        <div>
-                          <h3 className="text-base font-semibold text-foreground">
-                            {testimonial.author}
-                          </h3>
-                          <p className="text-sm text-muted-foreground">
-                            {testimonial.role}
+                  <motion.div
+                    whileHover={{ scale: 1.03, y: -5 }}
+                    transition={{ type: "spring", stiffness: 400, damping: 10 }}
+                  >
+                    <Card className="h-full border border-border bg-card">
+                      <CardContent className="p-6 flex flex-col h-full">
+                        <div className="flex-1">
+                          <p className="text-muted-foreground italic">
+                            "{testimonial.content}"
                           </p>
                         </div>
-                      </div>
-                    </CardContent>
-                  </Card>
+                        <div className="mt-6 flex items-center gap-x-4">
+                          <motion.img
+                            initial={{ scale: 0.8, opacity: 0 }}
+                            animate={{ scale: 1, opacity: 1 }}
+                            transition={{ delay: 0.2 * index }}
+                            src={testimonial.image}
+                            alt={testimonial.author}
+                            className="h-12 w-12 rounded-full bg-muted"
+                          />
+                          <div>
+                            <h3 className="text-base font-semibold text-foreground">
+                              {testimonial.author}
+                            </h3>
+                            <p className="text-sm text-muted-foreground">
+                              {testimonial.role}
+                            </p>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </motion.div>
                 </CarouselItem>
               ))}
             </CarouselContent>
@@ -146,12 +154,19 @@ export function TestimonialsSection() {
             "WorldTrade",
             "DataInsight",
             "Grupo Nexus",
-          ].map((company) => (
-            <div key={company} className="flex items-center justify-center">
+          ].map((company, index) => (
+            <motion.div
+              key={company}
+              className="flex items-center justify-center"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.1 * index + 0.7 }}
+              whileHover={{ scale: 1.1 }}
+            >
               <p className="text-lg font-semibold text-muted-foreground">
                 {company}
               </p>
-            </div>
+            </motion.div>
           ))}
         </motion.div>
       </div>
